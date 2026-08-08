@@ -1,0 +1,67 @@
+# render.yaml — Infrastructure-as-code for Render deployment
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Two services are defined:
+#   1. kt-api     — FastAPI backend  (uvicorn)
+#   2. kt-ui      — Streamlit frontend
+#
+# Deploy both by connecting this repo in Render and using "Blueprint" mode.
+
+services:
+
+  # ── 1. FastAPI Backend ───────────────────────────────────────────────────────
+  - type: web
+    name: kt-api
+    runtime: python
+    region: oregon          # change to: frankfurt | singapore | ohio as needed
+    plan: free              # upgrade to starter/standard for always-on
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+
+      # OpenAI key — set this in the Render dashboard (never commit the value)
+      - key: OPENAI_API_KEY
+        sync: false         # Render will prompt you to enter the value manually
+
+      # Optional tunables (uncomment and set as needed)
+      # - key: LLM_MODEL
+      #   value: gpt-4o-mini
+      # - key: LLM_TEMPERATURE
+      #   value: "0"
+      # - key: RETRIEVER_TOP_K
+      #   value: "6"
+      # - key: CHUNK_SIZE
+      #   value: "1000"
+      # - key: CHUNK_OVERLAP
+      #   value: "200"
+      # - key: EMBEDDING_MODEL
+      #   value: text-embedding-3-small
+      # - key: CHROMA_COLLECTION
+      #   value: kt_knowledge_base
+
+    disk:
+      name: kt-vectorstore
+      mountPath: /opt/render/project/src/vectorstore
+      sizeGB: 1             # persists ChromaDB across deploys (free tier: 1 GB)
+
+  # ── 2. Streamlit Frontend ────────────────────────────────────────────────────
+  - type: web
+    name: kt-ui
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+
+      # Point the UI at the deployed API service.
+      # After kt-api is live, copy its onrender.com URL here.
+      - key: BACKEND_URL
+        value: https://kt-api.onrender.com   # ← replace with your actual kt-api URL
