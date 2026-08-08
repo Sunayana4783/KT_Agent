@@ -1,5 +1,5 @@
 """
-agent.py — LangGraph 1.0 RAG Agent for Knowledge Transfer (KT).
+agent.py — LangGraph RAG Agent for Knowledge Transfer (KT).
 
 Graph flow:
   user question
