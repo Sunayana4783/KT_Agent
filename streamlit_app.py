@@ -41,7 +41,7 @@ def _backend_healthy() -> bool:
 def _ingest_pdf(uploaded_file) -> dict | None:
     try:
         files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
-        r = requests.post(f"{BACKEND_URL}/ingest", files=files, timeout=120)
+        r = requests.post(f"{BACKEND_URL}/ingest", files=files, timeout=300)
         r.raise_for_status()
         return r.json()
     except requests.exceptions.RequestException as e:
@@ -52,7 +52,7 @@ def _ingest_pdf(uploaded_file) -> dict | None:
 def _ask_agent(question: str, history: list[dict]) -> dict | None:
     try:
         payload = {"question": question, "chat_history": history}
-        r = requests.post(f"{BACKEND_URL}/ask", json=payload, timeout=120)
+        r = requests.post(f"{BACKEND_URL}/ask", json=payload, timeout=180)
         r.raise_for_status()
         return r.json()
     except requests.exceptions.RequestException as e:
