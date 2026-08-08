@@ -1,24 +1,24 @@
 # ── LangChain ecosystem — fully compatible 0.3.x stable set ──────────────────
-# langchain-community 0.3.x requires langchain-core<0.4 and langchain<0.4
-# langchain-openai 0.3.x requires langchain-core<0.4 and openai>=1.58.1
-# All packages below are tested to resolve without conflicts on Python 3.11
 langgraph==0.2.70
 langchain==0.3.25
-langchain-openai==0.3.0
+langchain-groq==0.3.8
 langchain-community==0.3.20
-langchain-core==0.3.58
+langchain-core==0.3.86
 langchain-text-splitters==0.3.8
+langchain-huggingface==0.1.2
 
 # PDF Parsing
 pypdf==5.1.0
 pdfminer.six==20231228
 
-# Vector Store (chromadb direct — compatible with langchain-community 0.3.x)
+# Vector Store (local, no API needed)
 chromadb==0.5.23
 
-# OpenAI SDK — must satisfy langchain-openai 0.3.0 requirement (>=1.58.1,<2.0)
-openai==1.59.2
-tiktoken==0.8.0
+# Free local embeddings (runs on CPU, no API key needed)
+sentence-transformers==3.3.1
+
+# Groq LLM (free tier — no credit card needed)
+groq==0.30.0
 
 # FastAPI backend
 fastapi==0.115.6

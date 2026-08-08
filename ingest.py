@@ -1,11 +1,10 @@
 """
 ingest.py — PDF ingestion pipeline for the KT Agent.
 
-Responsibilities:
-  - Load one or more PDF files
-  - Split text into chunks
-  - Generate embeddings via OpenAI
-  - Persist chunks into a local ChromaDB vector store
+Embeddings: HuggingFace sentence-transformers (FREE, runs locally on CPU)
+Vector store: ChromaDB (FREE, local persistent)
+
+No API key required for ingestion.
 """
 
 import os
@@ -15,7 +14,7 @@ from typing import List
 
 from dotenv import load_dotenv
 from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -25,17 +24,24 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+# ── Configuration ──────────────────────────────────────────────────────────────
 VECTORSTORE_DIR = Path(os.getenv("VECTORSTORE_DIR", "vectorstore"))
 COLLECTION_NAME = os.getenv("CHROMA_COLLECTION", "kt_knowledge_base")
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", "1000"))
+CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", "200"))
+
+# Free local embedding model — downloads once (~90 MB), then cached
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
 
-def _get_embeddings() -> OpenAIEmbeddings:
-    """Return an OpenAIEmbeddings instance."""
-    return OpenAIEmbeddings(model=EMBEDDING_MODEL)
+def _get_embeddings() -> HuggingFaceEmbeddings:
+    """Return a local HuggingFace sentence-transformer embeddings instance."""
+    logger.info("Loading embedding model: %s (local, free)", EMBEDDING_MODEL)
+    return HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL,
+        model_kwargs={"device": "cpu"},
+        encode_kwargs={"normalize_embeddings": True},
+    )
 
 
 def load_pdf(file_path: str | Path) -> List[Document]:
@@ -48,11 +54,10 @@ def load_pdf(file_path: str | Path) -> List[Document]:
     loader = PyPDFLoader(str(file_path))
     docs = loader.load()
 
-    # Tag every page with its source filename for citations
     for doc in docs:
         doc.metadata["source"] = file_path.name
 
-    logger.info("  → %d pages loaded", len(docs))
+    logger.info("  -> %d pages loaded", len(docs))
     return docs
 
 
@@ -84,11 +89,8 @@ def split_documents(docs: List[Document]) -> List[Document]:
     return chunks
 
 
-def get_vectorstore(embeddings: OpenAIEmbeddings | None = None) -> Chroma:
-    """
-    Return the persistent ChromaDB vector store.
-    Creates it if it doesn't exist yet.
-    """
+def get_vectorstore(embeddings: HuggingFaceEmbeddings | None = None) -> Chroma:
+    """Return the persistent ChromaDB vector store."""
     if embeddings is None:
         embeddings = _get_embeddings()
 
@@ -102,10 +104,7 @@ def get_vectorstore(embeddings: OpenAIEmbeddings | None = None) -> Chroma:
 
 
 def ingest_documents(docs: List[Document]) -> Chroma:
-    """
-    Chunk *docs*, embed them, and upsert into the persistent vector store.
-    Returns the populated Chroma instance.
-    """
+    """Chunk, embed, and upsert documents into the persistent vector store."""
     if not docs:
         raise ValueError("No documents to ingest.")
 
@@ -138,11 +137,9 @@ def ingest_directory(directory: str | Path = "data") -> Chroma:
 # ── CLI entry-point ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import sys
-
     if len(sys.argv) < 2:
         print("Usage: python ingest.py <pdf_file_or_directory>")
         sys.exit(1)
-
     target = Path(sys.argv[1])
     if target.is_dir():
         ingest_directory(target)
