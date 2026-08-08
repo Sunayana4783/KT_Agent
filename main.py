@@ -57,17 +57,10 @@ app.add_middleware(
 )
 
 
-# ── Startup: pre-load embedding model so first request is fast ─────────────────
+# ── Startup ────────────────────────────────────────────────────────────────────
 @app.on_event("startup")
-async def preload_models():
-    """Pre-load the ONNX embedding model at startup so first request is fast."""
-    try:
-        logger.info("Pre-loading ONNX embedding model at startup...")
-        from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
-        ONNXMiniLM_L6_V2()
-        logger.info("ONNX embedding model loaded and ready.")
-    except Exception as e:
-        logger.warning("Could not pre-load embedding model: %s", e)
+async def startup():
+    logger.info("KT Agent API started. Ready to accept requests.")
 
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
