@@ -1,29 +1,24 @@
 """
 ingest.py — PDF ingestion pipeline for the KT Agent.
 
-Embeddings: HuggingFace sentence-transformers (FREE, runs locally on CPU)
+Embeddings: ChromaDB built-in ONNX model (uses onnxruntime, ~50MB, no torch)
 Vector store: ChromaDB (FREE, local persistent)
 
-No API key required for ingestion.
+Fits in Render free tier 512MB RAM — no torch, no sentence-transformers needed.
 """
 
 import os
 import logging
-
-# Must be set BEFORE importing sentence_transformers / transformers
-# to prevent TensorFlow from being imported (protobuf version conflict)
-os.environ.setdefault("USE_TF", "0")
-os.environ.setdefault("USE_TORCH", "1")
-os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 from pathlib import Path
 from typing import List
 
 from dotenv import load_dotenv
 from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import chromadb
+from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 
 load_dotenv()
 
@@ -36,18 +31,26 @@ COLLECTION_NAME = os.getenv("CHROMA_COLLECTION", "kt_knowledge_base")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", "200"))
 
-# Free local embedding model — downloads once (~90 MB), then cached
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+
+class _ONNXEmbeddings:
+    """
+    Wraps ChromaDB's built-in ONNX MiniLM embedding function into
+    a LangChain-compatible embeddings interface.
+    Uses onnxruntime only (~50MB) — no torch, no sentence-transformers.
+    """
+    def __init__(self):
+        self._fn = ONNXMiniLM_L6_V2()
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return self._fn(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        return self._fn([text])[0]
 
 
-def _get_embeddings() -> HuggingFaceEmbeddings:
-    """Return a local HuggingFace sentence-transformer embeddings instance."""
-    logger.info("Loading embedding model: %s (local, free)", EMBEDDING_MODEL)
-    return HuggingFaceEmbeddings(
-        model_name=EMBEDDING_MODEL,
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True},
-    )
+def _get_embeddings() -> _ONNXEmbeddings:
+    logger.info("Loading ONNX MiniLM embedding model (lightweight, no torch)")
+    return _ONNXEmbeddings()
 
 
 def load_pdf(file_path: str | Path) -> List[Document]:
@@ -55,36 +58,31 @@ def load_pdf(file_path: str | Path) -> List[Document]:
     file_path = Path(file_path)
     if not file_path.exists():
         raise FileNotFoundError(f"PDF not found: {file_path}")
-
     logger.info("Loading PDF: %s", file_path.name)
     loader = PyPDFLoader(str(file_path))
     docs = loader.load()
-
     for doc in docs:
         doc.metadata["source"] = file_path.name
-
     logger.info("  -> %d pages loaded", len(docs))
     return docs
 
 
 def load_pdfs_from_dir(directory: str | Path) -> List[Document]:
-    """Load all PDFs found inside *directory* recursively."""
+    """Load all PDFs found inside directory recursively."""
     directory = Path(directory)
     pdf_files = list(directory.rglob("*.pdf"))
     if not pdf_files:
         logger.warning("No PDF files found in %s", directory)
         return []
-
     all_docs: List[Document] = []
     for pdf in pdf_files:
         all_docs.extend(load_pdf(pdf))
-
-    logger.info("Total pages loaded from directory: %d", len(all_docs))
+    logger.info("Total pages loaded: %d", len(all_docs))
     return all_docs
 
 
 def split_documents(docs: List[Document]) -> List[Document]:
-    """Split documents into overlapping chunks for better retrieval."""
+    """Split documents into overlapping chunks."""
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
@@ -95,13 +93,11 @@ def split_documents(docs: List[Document]) -> List[Document]:
     return chunks
 
 
-def get_vectorstore(embeddings: HuggingFaceEmbeddings | None = None) -> Chroma:
+def get_vectorstore(embeddings=None) -> Chroma:
     """Return the persistent ChromaDB vector store."""
     if embeddings is None:
         embeddings = _get_embeddings()
-
     VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
-
     return Chroma(
         collection_name=COLLECTION_NAME,
         embedding_function=embeddings,
@@ -113,18 +109,16 @@ def ingest_documents(docs: List[Document]) -> Chroma:
     """Chunk, embed, and upsert documents into the persistent vector store."""
     if not docs:
         raise ValueError("No documents to ingest.")
-
     embeddings = _get_embeddings()
     chunks = split_documents(docs)
-
-    logger.info("Upserting %d chunks into ChromaDB collection '%s' ...", len(chunks), COLLECTION_NAME)
+    logger.info("Upserting %d chunks into ChromaDB ...", len(chunks))
     vectorstore = Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
         collection_name=COLLECTION_NAME,
         persist_directory=str(VECTORSTORE_DIR),
     )
-    logger.info("Ingestion complete. Vector store persisted at: %s", VECTORSTORE_DIR)
+    logger.info("Ingestion complete. Persisted at: %s", VECTORSTORE_DIR)
     return vectorstore
 
 
@@ -140,7 +134,6 @@ def ingest_directory(directory: str | Path = "data") -> Chroma:
     return ingest_documents(docs)
 
 
-# ── CLI entry-point ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:

@@ -35,7 +35,6 @@ from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
 
 from ingest import get_vectorstore
-
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

@@ -5,17 +5,13 @@ langchain-groq==0.3.8
 langchain-community==0.3.20
 langchain-core==0.3.86
 langchain-text-splitters==0.3.8
-langchain-huggingface==0.1.2
 
 # PDF Parsing
 pypdf==5.1.0
 pdfminer.six==20231228
 
-# Vector Store (local, no API needed)
+# Vector Store — uses built-in ONNX embeddings (no torch needed, fits in 512MB)
 chromadb==0.5.23
-
-# Free local embeddings (runs on CPU, no API key needed)
-sentence-transformers==3.0.1
 
 # Groq LLM (free tier — no credit card needed)
 groq==0.30.0
