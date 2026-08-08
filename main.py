@@ -60,15 +60,12 @@ app.add_middleware(
 # ── Startup: pre-load embedding model so first request is fast ─────────────────
 @app.on_event("startup")
 async def preload_models():
-    """
-    Download and cache the embedding model at startup.
-    This prevents timeout on first /ingest request.
-    """
+    """Pre-load the ONNX embedding model at startup so first request is fast."""
     try:
-        logger.info("Pre-loading embedding model at startup...")
-        from ingest import _get_embeddings
-        _get_embeddings()
-        logger.info("Embedding model loaded and cached.")
+        logger.info("Pre-loading ONNX embedding model at startup...")
+        from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+        ONNXMiniLM_L6_V2()
+        logger.info("ONNX embedding model loaded and ready.")
     except Exception as e:
         logger.warning("Could not pre-load embedding model: %s", e)
 
