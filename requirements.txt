@@ -12,8 +12,8 @@ pdfminer.six==20231228
 # Vector Store
 chromadb==0.5.23
 
-# Embeddings / OpenAI
-openai==1.59.0
+# Embeddings / OpenAI  (1.59.0 does not exist — skips to 1.59.2)
+openai==1.59.2
 tiktoken==0.8.0
 
 # FastAPI backend
