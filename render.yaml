@@ -24,8 +24,14 @@ services:
         value: "3.11.0"
 
       # OpenAI key — set this in the Render dashboard (never commit the value)
-      - key: OPENAI_API_KEY
+      - key: GROQ_API_KEY
         sync: false         # Render will prompt you to enter the value manually
+
+      # Prevent sentence-transformers from importing TensorFlow
+      - key: USE_TF
+        value: "0"
+      - key: USE_TORCH
+        value: "1"
 
       # Optional tunables (uncomment and set as needed)
       # - key: LLM_MODEL
