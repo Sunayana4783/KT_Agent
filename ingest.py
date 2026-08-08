@@ -9,6 +9,12 @@ No API key required for ingestion.
 
 import os
 import logging
+
+# Must be set BEFORE importing sentence_transformers / transformers
+# to prevent TensorFlow from being imported (protobuf version conflict)
+os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("USE_TORCH", "1")
+os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 from pathlib import Path
 from typing import List
 

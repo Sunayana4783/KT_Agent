@@ -15,7 +15,7 @@ pdfminer.six==20231228
 chromadb==0.5.23
 
 # Free local embeddings (runs on CPU, no API key needed)
-sentence-transformers==2.7.0
+sentence-transformers==3.0.1
 
 # Groq LLM (free tier — no credit card needed)
 groq==0.30.0
