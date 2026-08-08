@@ -32,6 +32,11 @@ services:
         value: "0"
       - key: USE_TORCH
         value: "1"
+      # Cache HuggingFace models on disk so they persist across deploys
+      - key: HF_HOME
+        value: /opt/render/project/src/hf_cache
+      - key: SENTENCE_TRANSFORMERS_HOME
+        value: /opt/render/project/src/hf_cache
 
       # Free Groq models: llama-3.3-70b-versatile | llama4-scout-17b-16e-instruct | gemma2-9b-it
       # - key: LLM_TEMPERATURE

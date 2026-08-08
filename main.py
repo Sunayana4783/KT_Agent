@@ -25,6 +25,11 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
+# Set before any ML imports to prevent TensorFlow conflicts
+os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("USE_TORCH", "1")
+os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -45,11 +50,27 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # tighten in production if needed
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Startup: pre-load embedding model so first request is fast ─────────────────
+@app.on_event("startup")
+async def preload_models():
+    """
+    Download and cache the embedding model at startup.
+    This prevents timeout on first /ingest request.
+    """
+    try:
+        logger.info("Pre-loading embedding model at startup...")
+        from ingest import _get_embeddings
+        _get_embeddings()
+        logger.info("Embedding model loaded and cached.")
+    except Exception as e:
+        logger.warning("Could not pre-load embedding model: %s", e)
 
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
