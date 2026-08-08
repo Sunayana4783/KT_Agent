@@ -33,9 +33,7 @@ services:
       - key: USE_TORCH
         value: "1"
 
-      # Optional tunables (uncomment and set as needed)
-      # - key: LLM_MODEL
-      #   value: gpt-4o-mini
+      # Free Groq models: llama-3.3-70b-versatile | llama4-scout-17b-16e-instruct | gemma2-9b-it
       # - key: LLM_TEMPERATURE
       #   value: "0"
       # - key: RETRIEVER_TOP_K

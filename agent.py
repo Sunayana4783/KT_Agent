@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 # ── Model config ───────────────────────────────────────────────────────────────
 # Groq free models: llama3-8b-8192, llama3-70b-8192, mixtral-8x7b-32768, gemma2-9b-it
-LLM_MODEL   = os.getenv("LLM_MODEL", "llama3-8b-8192")
+LLM_MODEL   = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
 TOP_K       = int(os.getenv("RETRIEVER_TOP_K", "6"))
 
